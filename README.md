@@ -10,7 +10,7 @@ Firestore behind it, results synced from ESPN with an admin override.
 | Phase | What it covers | State |
 | --- | --- | --- |
 | 0 | Repo, Firebase wiring, Entra sign-in, security rules, deploy | Code done, needs a Firebase project |
-| 1 | Bracket engine, scoring, ceilings, validation | **Done — 76 tests passing** |
+| 1 | Bracket engine, scoring, ceilings, validation, prizes | **Done — 96 tests passing** |
 | 2 | Bracket entry UI, desktop and mobile | **Done — runs against a local store** |
 | 3 | Results sync job, admin override | Not started |
 | 4 | Standings, bracket viewer, scoreboard, insights | Not started |
@@ -57,7 +57,7 @@ run identically in the browser and in the results sync job.
 
 ```bash
 npm install
-npm test          # 76 tests
+npm test          # 96 tests
 npm run typecheck
 npm run dev
 ```
@@ -105,10 +105,29 @@ standings could win the pool from the console.
 secrets in code — the service account lives in Actions secrets and the
 Firebase web config is public by design, protected by security rules.
 
+## Pool rules
+
+- **$10 per bracket**, up to 5 brackets per person. Each bracket stands on its
+  own and can win its own prize.
+- **Last place gets their $10 back**, taken off the top of the pot.
+- **What remains is split 50 / 30 / 20** between 1st, 2nd and 3rd. At 30 paid
+  entries that is $145 / $87 / $58, with $10 back to last.
+- **Tiebreaker** is the total points scored in the championship game, both
+  teams added together. Closest without going over wins. Because it settles the
+  full ordering, it decides last place as well as first.
+- Only paid brackets are eligible for prize money. Unpaid ones still appear on
+  the leaderboard.
+
+All prize arithmetic is in integer cents with largest-remainder apportionment,
+so the payouts always sum to exactly the money collected. A property test
+checks that from 4 to 120 entries.
+
+Ties pool the places they occupy and split them evenly: two entries level for
+the lead share 1st and 2nd money, and 3rd is still 3rd.
+
 ## Open questions
 
-- Entry fee, or free with a company-funded prize? A pot is an HR conversation
-  first (Texas Penal Code §47.02).
-- Entries per person: one, or up to three?
+- Confirm the 50 / 30 / 20 split and the 5-bracket cap — both are single config
+  values in `DEFAULT_PRIZE_RULES` and `DEFAULT_MAX_ENTRIES_PER_USER`.
 - A women's tournament pool alongside it? Same engine, one more config doc.
 - Custom domain, or `compo-cf.github.io/centric-bracket-pool`?

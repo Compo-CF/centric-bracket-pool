@@ -19,6 +19,8 @@ export interface StoredEntry {
   status: EntryStatus;
   updatedAt: string;
   submittedAt: string | null;
+  /** Set by the pool admin when the $10 is collected. Never by the entrant. */
+  paid: boolean;
 }
 
 export interface PoolStore {
@@ -90,6 +92,7 @@ export function newEntry(name: string): StoredEntry {
     status: 'draft',
     updatedAt: new Date().toISOString(),
     submittedAt: null,
+    paid: false,
   };
 }
 
@@ -115,6 +118,6 @@ export function toEngineEntry(
     picks: entry.picks,
     tiebreaker: entry.tiebreaker,
     submittedAt: entry.submittedAt,
-    paid: false,
+    paid: entry.paid,
   };
 }

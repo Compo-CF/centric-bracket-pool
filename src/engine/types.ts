@@ -102,6 +102,23 @@ export interface Standing {
   tiebreaker: number | null;
 }
 
+export interface PrizeRules {
+  entryFeeCents: number;
+  /** Percentages of the payout pool for 1st, 2nd and 3rd. Must total 100. */
+  split: readonly [number, number, number];
+  /** Last place gets their entry fee back, taken off the top. */
+  refundLastPlace: boolean;
+}
+
+export const DEFAULT_PRIZE_RULES: PrizeRules = {
+  entryFeeCents: 1000,
+  split: [50, 30, 20],
+  refundLastPlace: true,
+};
+
+/** More than one bracket per person is allowed; this caps how many. */
+export const DEFAULT_MAX_ENTRIES_PER_USER = 5;
+
 export interface PoolConfig {
   year: number;
   name: string;
@@ -110,4 +127,5 @@ export interface PoolConfig {
   weights: Record<Round, number>;
   isOpen: boolean;
   maxEntriesPerUser: number;
+  prizes: PrizeRules;
 }
