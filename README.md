@@ -9,9 +9,9 @@ Firestore behind it, results synced from ESPN with an admin override.
 
 | Phase | What it covers | State |
 | --- | --- | --- |
-| 0 | Repo, Firebase wiring, Entra sign-in, security rules, deploy | Code done, needs a Firebase project |
+| 0 | Repo, Firebase wiring, Entra sign-in, security rules, deploy | **Done — Microsoft sign-in verified live** |
 | 1 | Bracket engine, scoring, ceilings, validation, prizes | **Done — 96 tests passing** |
-| 2 | Bracket entry UI, desktop and mobile | **Done — runs against a local store** |
+| 2 | Bracket entry UI, desktop and mobile | **Done — entries in Firestore** |
 | 3 | Results sync job, admin override | Not started |
 | 4 | Standings, bracket viewer, scoreboard, insights | Not started |
 | 5 | Replay the 2026 tournament to prove the scoring | Not started |

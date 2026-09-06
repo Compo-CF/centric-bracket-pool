@@ -19,7 +19,8 @@ import {
 import { sampleField } from './data/sampleField.js';
 import { ALLOWED_EMAIL_DOMAIN, isConfigured, missingConfig } from './lib/firebase.js';
 import { AuthError, onUserChange, signIn, signOut, type User } from './lib/auth.js';
-import { LocalStore, newEntry, type StoredEntry } from './lib/store.js';
+import { LocalStore, newEntry, type PoolStore, type StoredEntry } from './lib/store.js';
+import { FirestoreStore } from './lib/firestoreStore.js';
 import { escapeHtml } from './ui/bracket.js';
 import { mountEntryPage } from './ui/entryPage.js';
 
@@ -28,7 +29,12 @@ const root = document.querySelector<HTMLElement>('#app')!;
 const field = sampleField();
 const games = seedBracket(buildEmptyBracket(), field);
 const teams = indexTeams(field);
-const store = new LocalStore();
+/**
+ * Swapped for a FirestoreStore the moment someone signs in. LocalStore is the
+ * placeholder until then, and the fallback for running the UI with no Firebase
+ * project at all.
+ */
+let store: PoolStore = new LocalStore();
 
 const prizeRules = DEFAULT_PRIZE_RULES;
 const maxEntriesPerUser = DEFAULT_MAX_ENTRIES_PER_USER;
@@ -310,9 +316,17 @@ function boot(): void {
     if (!user) {
       cleanup?.();
       cleanup = null;
+      store = new LocalStore();
       renderSignedOut();
       return;
     }
+
+    store = new FirestoreStore({
+      uid: user.uid,
+      email: user.email ?? '',
+      name: user.displayName ?? user.email ?? 'Unknown',
+    });
+
     if (!routing) {
       window.addEventListener('hashchange', route);
       routing = true;
