@@ -26,6 +26,7 @@ import { FirestoreStore } from './lib/firestoreStore.js';
 import { escapeHtml } from './ui/bracket.js';
 import { mountEntryPage } from './ui/entryPage.js';
 import { mountStandingsPage } from './ui/standingsPage.js';
+import { mountAdminPage } from './ui/adminPage.js';
 
 const root = document.querySelector<HTMLElement>('#app')!;
 
@@ -80,6 +81,9 @@ function nav(active: string): string {
     ['#/', 'Rules'],
     ['#/entries', 'My entries'],
     ['#/standings', 'Standings'],
+    // Only shown to admins; the route guards itself too, and the security
+    // rules reject the writes regardless, so this is convenience not security.
+    ...(currentIsAdmin ? [['#/admin', 'Admin']] : []),
   ];
   return `<nav class="topnav">${links.map(([href, label]) =>
     `<a href="${href}" class="${href === active ? 'active' : ''}">${label}</a>`).join('')}</nav>`;
@@ -262,6 +266,29 @@ function renderStandings(): void {
   `);
 }
 
+function renderAdmin(): void {
+  if (!currentIsAdmin || !currentUser) {
+    root.className = 'shell';
+    root.innerHTML = `
+      <p class="eyebrow">Centric Fiber</p>
+      <h1>Admin</h1>
+      ${userBar()}
+      ${nav('#/admin')}
+      <div class="panel"><h2>Not an admin</h2>
+        <p>This account does not have the admin claim. If it should, an existing
+        admin runs <code>npm run pool:grant-admin</code>, and you sign out and
+        back in.</p></div>
+    `;
+    return;
+  }
+  cleanup = mountAdminPage(root, () => `
+    <p class="eyebrow">Centric Fiber</p>
+    <h1>Admin</h1>
+    ${userBar()}
+    ${nav('#/admin')}
+  `, { uid: currentUser.uid, email: currentUser.email ?? 'unknown' });
+}
+
 function route(): void {
   cleanup?.();
   cleanup = null;
@@ -269,6 +296,7 @@ function route(): void {
   if (path.startsWith('/entry/')) void renderEntry(path.slice('/entry/'.length));
   else if (path === '/entries') void renderEntries();
   else if (path === '/standings') renderStandings();
+  else if (path === '/admin') renderAdmin();
   else renderHome();
 }
 

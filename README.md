@@ -12,8 +12,8 @@ Firestore behind it, results synced from ESPN with an admin override.
 | 0 | Repo, Firebase wiring, Entra sign-in, security rules, deploy | **Done — Microsoft sign-in verified live** |
 | 1 | Bracket engine, scoring, ceilings, validation, prizes | **Done — 114 tests passing** |
 | 2 | Bracket entry UI, desktop and mobile | **Done — entries in Firestore** |
-| 3 | Results sync job, admin override | Not started |
-| 4 | Standings and projected payouts | **Done** — bracket viewer, scoreboard and insights still to come |
+| 3 | Results sync job, admin override | **Done** — verified green in Actions via WIF |
+| 4 | Standings, payouts, admin control room | **Done** — bracket viewer and pool insights still to come |
 | 5 | Replay the 2026 tournament to prove the scoring | **Done** — 114 tests |
 | 6 | Dress rehearsal with real colleagues | Not started |
 | 7 | Go live on Selection Sunday | Not started |
