@@ -1,9 +1,12 @@
 /**
  * App shell and hash router.
  *
- * Until the Firebase project exists the app runs against a browser-local
- * store and the sample field. Both are labelled wherever they are visible --
- * nothing here pretends to be the real pool.
+ * Nothing renders until Firebase reports a signed-in Centric account. Behind
+ * that gate, two things are still stand-ins: entries live in a browser-local
+ * store, and the bracket uses a sample field. Both are labelled wherever they
+ * are visible, and each is flagged off its own condition rather than off
+ * whether Firebase happens to be configured -- nothing here pretends to be
+ * the real pool.
  */
 
 import './styles.css';
@@ -14,7 +17,8 @@ import {
   seedBracket, type Round,
 } from './engine/index.js';
 import { sampleField } from './data/sampleField.js';
-import { isConfigured, missingConfig } from './lib/firebase.js';
+import { ALLOWED_EMAIL_DOMAIN, isConfigured, missingConfig } from './lib/firebase.js';
+import { AuthError, onUserChange, signIn, signOut, type User } from './lib/auth.js';
 import { LocalStore, newEntry, type StoredEntry } from './lib/store.js';
 import { escapeHtml } from './ui/bracket.js';
 import { mountEntryPage } from './ui/entryPage.js';
@@ -32,7 +36,16 @@ const maxEntriesPerUser = DEFAULT_MAX_ENTRIES_PER_USER;
 /** Example entry count for the prize table, so the structure is concrete. */
 const EXAMPLE_ENTRIES = 30;
 
+/**
+ * Still the sample field: nothing imports the real one yet. Flipped when the
+ * admin field import lands, NOT tied to whether Firebase is configured -- the
+ * two are unrelated, and conflating them would quietly present Duke and
+ * Houston as the real bracket.
+ */
+const USING_SAMPLE_FIELD = true;
+
 let cleanup: (() => void) | null = null;
+let currentUser: User | null = null;
 
 function prizeTable(entries: number): string {
   const pool = prizePool(entries, prizeRules);
@@ -61,14 +74,29 @@ function nav(active: string): string {
     `<a href="${href}" class="${href === active ? 'active' : ''}">${label}</a>`).join('')}</nav>`;
 }
 
+/**
+ * Reflects the STORE, not the Firebase config. Sign-in can be live while
+ * entries are still browser-local, and saying otherwise would be a lie about
+ * where someone's bracket lives.
+ */
 function localModeBanner(): string {
-  if (isConfigured()) return '';
+  if (store.mode !== 'local') return '';
   return `<div class="notice">
-    <strong>Local mode.</strong> Entries are saved in this browser only, and the
-    bracket uses a sample field. Connecting Firebase turns on sign-in, shared
-    entries and live scoring. Missing:
-    ${missingConfig().map((m) => `<code>${m}</code>`).join(' ')}
+    <strong>Entries are saved in this browser only.</strong> They are not shared
+    with the pool yet and will not appear on a leaderboard. Switching the store
+    to Firestore is the next piece of work.
   </div>`;
+}
+
+function userBar(): string {
+  if (!currentUser) return '';
+  return `<p class="who">Signed in as ${escapeHtml(currentUser.email ?? 'unknown')}
+    &middot; <button type="button" id="sign-out" class="linklike">Sign out</button></p>`;
+}
+
+function wireSignOut(): void {
+  root.querySelector<HTMLButtonElement>('#sign-out')
+    ?.addEventListener('click', () => { void signOut(); });
 }
 
 function renderHome(): void {
@@ -87,6 +115,7 @@ function renderHome(): void {
       ${formatMoney(prizeRules.entryFeeCents)} a bracket. Pick every game before
       the first tip on Thursday.
     </p>
+    ${userBar()}
     ${localModeBanner()}
     ${nav('#/')}
     <div class="panel">
@@ -129,6 +158,7 @@ function renderHome(): void {
 
   root.querySelector<HTMLButtonElement>('#go-entries')!
     .addEventListener('click', () => { window.location.hash = '#/entries'; });
+  wireSignOut();
 }
 
 function entryRow(entry: StoredEntry): string {
@@ -152,6 +182,7 @@ async function renderEntries(): Promise<void> {
   root.innerHTML = `
     <p class="eyebrow">Centric Fiber</p>
     <h1>My entries</h1>
+    ${userBar()}
     ${localModeBanner()}
     ${nav('#/entries')}
     <div class="panel">
@@ -183,6 +214,8 @@ async function renderEntries(): Promise<void> {
     await store.remove(id);
     void renderEntries();
   });
+
+  wireSignOut();
 }
 
 async function renderEntry(id: string): Promise<void> {
@@ -202,7 +235,7 @@ async function renderEntry(id: string): Promise<void> {
     entry,
     games,
     teams,
-    usingSampleField: !isConfigured(),
+    usingSampleField: USING_SAMPLE_FIELD,
   });
 }
 
@@ -215,5 +248,77 @@ function route(): void {
   else renderHome();
 }
 
-window.addEventListener('hashchange', route);
-route();
+function renderSetupNeeded(): void {
+  root.className = 'shell';
+  root.innerHTML = `
+    <p class="eyebrow">Centric Fiber</p>
+    <h1>Centric Bracket Pool</h1>
+    <p class="lede">Almost there &mdash; Firebase is not configured yet.</p>
+    <div class="panel">
+      <h2>Missing configuration</h2>
+      <p>Set these and the pool opens for sign-in. The steps are in the README.</p>
+      <p>${missingConfig().map((m) => `<code>${m}</code>`).join(' ')}</p>
+    </div>
+  `;
+}
+
+function renderSignedOut(error?: string): void {
+  root.className = 'shell';
+  root.innerHTML = `
+    <p class="eyebrow">Centric Fiber</p>
+    <h1>Centric Bracket Pool</h1>
+    <p class="lede">
+      ${TOTAL_SLOTS} games, ${PERFECT_SCORE} points,
+      ${formatMoney(prizeRules.entryFeeCents)} a bracket.
+    </p>
+    <div class="panel">
+      <h2>Sign in</h2>
+      <p class="meta">Open to ${ALLOWED_EMAIL_DOMAIN} accounts.</p>
+      <button type="button" id="sign-in">Sign in with Microsoft</button>
+      ${error ? `<div class="error">${escapeHtml(error)}</div>` : ''}
+    </div>
+  `;
+
+  const button = root.querySelector<HTMLButtonElement>('#sign-in')!;
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    button.textContent = 'Signing in…';
+    try {
+      await signIn();
+    } catch (caught) {
+      renderSignedOut(caught instanceof AuthError
+        ? caught.message
+        : 'Sign-in failed. Try again, or tell Anthony if it keeps happening.');
+    }
+  });
+}
+
+let routing = false;
+
+/**
+ * Nothing renders behind the gate until Firebase reports a signed-in Centric
+ * account. onUserChange already filters out anyone outside the email domain.
+ */
+function boot(): void {
+  if (!isConfigured()) {
+    renderSetupNeeded();
+    return;
+  }
+
+  onUserChange((user) => {
+    currentUser = user;
+    if (!user) {
+      cleanup?.();
+      cleanup = null;
+      renderSignedOut();
+      return;
+    }
+    if (!routing) {
+      window.addEventListener('hashchange', route);
+      routing = true;
+    }
+    route();
+  });
+}
+
+boot();
