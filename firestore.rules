@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// The results sync job authenticates with a service account and therefore
+// bypasses these rules entirely. Everything below governs browsers only.
+//
+// The rule that matters: no client can write to /tournament, which is where
+// game results and standings live. A browser that could write standings could
+// win the pool from the console.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Entra tenant restriction is the real gate; this is a second lock on the
+    // same door, in case a provider is ever added without tenant scoping.
+    function companyEmail() {
+      return signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.lower().matches('.*@centricfiber[.]com');
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function config() {
+      return get(/databases/$(database)/documents/config/pool).data;
+    }
+
+    function locked() {
+      return request.time >= config().lockTime;
+    }
+
+    function acceptingEntries() {
+      return config().isOpen == true && !locked();
+    }
+
+    function ownsExisting() {
+      return signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // ---- Pool settings -----------------------------------------------------
+    match /config/{document} {
+      allow read: if companyEmail();
+      allow write: if isAdmin();
+    }
+
+    // ---- Bracket, results and standings ------------------------------------
+    match /tournament/{document} {
+      allow read: if companyEmail();
+      allow write: if isAdmin();
+    }
+
+    // ---- People ------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if companyEmail();
+      // Nobody grants themselves the admin flag; that is set out of band.
+      allow create, update: if companyEmail()
+        && request.auth.uid == uid
+        && !('admin' in request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---- Entries -----------------------------------------------------------
+    match /entries/{entryId} {
+      // Your own bracket any time; everyone else's only once entries lock.
+      allow read: if isAdmin()
+        || (companyEmail() && (ownsExisting() || locked()));
+
+      allow create: if companyEmail()
+        && acceptingEntries()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.paid == false;
+
+      // Owners may edit picks until lock, but never reassign or mark paid.
+      allow update: if companyEmail()
+        && acceptingEntries()
+        && ownsExisting()
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.paid == resource.data.paid;
+
+      allow delete: if companyEmail() && acceptingEntries() && ownsExisting();
+
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- Audit trail -------------------------------------------------------
+    match /audit/{document} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

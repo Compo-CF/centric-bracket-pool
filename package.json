@@ -1,0 +1,23 @@
+{
+  "name": "centric-bracket-pool",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Company NCAA tournament bracket pool. Static front end on GitHub Pages, Firestore behind it.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "firebase": "^11.1.0"
+  }
+}
