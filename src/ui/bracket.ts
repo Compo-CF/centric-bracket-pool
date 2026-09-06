@@ -21,6 +21,12 @@ export interface BracketView {
   picks: Readonly<Record<SlotId, TeamId>>;
   /** Set false once the entry is submitted or the pool has locked. */
   editable: boolean;
+  /**
+   * Slots to mark as decided by hand. Only the admin view passes this: an
+   * overridden game is one the sync job will never touch again, so it needs to
+   * be visible at a glance rather than buried in a document.
+   */
+  overridden?: ReadonlySet<SlotId>;
 }
 
 export function escapeHtml(value: string): string {
@@ -70,7 +76,9 @@ function matchEl(slot: SlotId, view: BracketView, games: Map<SlotId, Game>): str
   const game = games.get(slot);
   if (!game) return '';
   const decided = view.picks[slot] !== undefined;
-  return `<div class="match${decided ? ' done' : ''}" data-slot="${slot}">` +
+  const manual = view.overridden?.has(slot) === true;
+  return `<div class="match${decided ? ' done' : ''}${manual ? ' manual' : ''}"` +
+    ` data-slot="${slot}">` +
     teamRow(slot, game.teamA, view, 'a') +
     teamRow(slot, game.teamB, view, 'b') +
     `</div>`;

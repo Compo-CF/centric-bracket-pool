@@ -650,3 +650,19 @@ table.board td button { font-size: 13px; padding: 5px 12px; }
 
 .panel .decisions { margin: 10px 0 18px; }
 .panel .decisions .decision dd { font-size: 21px; }
+
+/* A game decided by hand, not by the sync job. */
+.match.manual { border-color: var(--live); }
+.match.manual::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 4px;
+  bottom: -1px;
+  background: var(--live);
+  border-radius: 3px 0 0 3px;
+  z-index: 1;
+}
+
+.admin-bracket-note { margin-bottom: 10px; }

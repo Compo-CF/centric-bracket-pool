@@ -7,14 +7,17 @@
  */
 
 import {
-  ROUNDS, ROUND_NAMES, TOTAL_SLOTS, formatMoney,
-  type Game, type Round, type Team, type TeamId,
+  TOTAL_SLOTS, formatMoney,
+  type Game, type Team, type TeamId,
 } from '../engine/index.js';
 import {
   loadAdminSnapshot, rebuildStandings, setPaid, setPoolOpen, setResult,
   type AdminSnapshot,
 } from '../lib/adminStore.js';
-import { escapeHtml } from './bracket.js';
+import {
+  escapeHtml, renderDesktop, renderMobile,
+  type BracketView, type MobilePanel,
+} from './bracket.js';
 
 interface Notice { kind: 'error' | 'notice'; text: string }
 
@@ -29,6 +32,11 @@ export function mountAdminPage(
   let notice: Notice | null = null;
   let busy = false;
   let disposed = false;
+  let panel: MobilePanel = 1;
+
+  const mobile = window.matchMedia('(max-width: 900px)');
+  const onMediaChange = () => render();
+  mobile.addEventListener('change', onMediaChange);
 
   function entryFee(): number {
     const prizes = snapshot?.config['prizes'] as { entryFeeCents?: number } | undefined;
@@ -82,37 +90,35 @@ export function mountAdminPage(
   function resultsPanel(): string {
     const bracket = snapshot?.bracket;
     if (!bracket) return '';
-    const named = new Map(bracket.teams.map((t: Team) => [t.id, t.name]));
+
     const decided = bracket.games.filter((g: Game) => g.winner !== null).length;
+    const overridden = new Set(
+      bracket.games.filter((g: Game) => g.overriddenBy).map((g: Game) => g.slot));
 
-    const sections = ROUNDS.map((round: Round) => {
-      const playable = bracket.games.filter((g: Game) => g.round === round && g.teamA && g.teamB);
-      if (playable.length === 0) return '';
+    // Winners drive the highlight, so the bracket reads as the tournament so
+    // far rather than as somebody's picks.
+    const picks: Record<string, TeamId> = {};
+    for (const game of bracket.games) {
+      if (game.winner) picks[game.slot] = game.winner;
+    }
 
-      const rows = playable.map((game: Game) => {
-        const pick = (team: TeamId) => `<button type="button"
-          class="${game.winner === team ? '' : 'secondary'}"
-          data-slot="${game.slot}" data-winner="${escapeHtml(team)}">${
-          escapeHtml(named.get(team) ?? team)}</button>`;
-        return `<tr>
-          <td class="mono">${game.slot}${game.overriddenBy
-            ? ' <span class="status-pill admin">manual</span>' : ''}</td>
-          <td class="picks">${pick(game.teamA as TeamId)} ${pick(game.teamB as TeamId)}</td>
-          <td>${game.winner
-            ? `<button type="button" class="secondary" data-slot="${game.slot}" data-clear="1">Clear</button>`
-            : '<span class="meta">undecided</span>'}</td>
-        </tr>`;
-      }).join('');
-
-      return `<h3 class="round-label">${escapeHtml(ROUND_NAMES[round])}</h3>
-        <div class="scroller"><table class="board"><tbody>${rows}</tbody></table></div>`;
-    }).join('');
+    const view: BracketView = {
+      games: bracket.games,
+      teams: new Map(bracket.teams.map((t: Team) => [t.id, t])),
+      picks,
+      editable: true,
+      overridden,
+    };
 
     return `<div class="panel">
       <h2>Results</h2>
-      <p class="meta">${decided} of ${TOTAL_SLOTS} games decided. Setting one by hand
-      marks it manual, and the sync job will never touch it again.</p>
-      ${sections || '<p>No games have a matchup yet.</p>'}
+      <p class="meta">${decided} of ${TOTAL_SLOTS} games decided. Click a team to
+      make them the winner; click them again to undo. A game set here is marked
+      <span class="status-pill admin">manual</span> and the sync job will never
+      touch it again.</p>
+      <div class="bracket-scroll">
+        ${mobile.matches ? renderMobile(view, panel) : renderDesktop(view)}
+      </div>
     </div>`;
   }
 
@@ -136,7 +142,7 @@ export function mountAdminPage(
 
   function render(): void {
     if (disposed) return;
-    root.className = 'shell';
+    root.className = 'shell wide';
     if (!snapshot) {
       root.innerHTML = `${header()}<p class="loading">Loading&hellip;</p>`;
       return;
@@ -173,23 +179,37 @@ export function mountAdminPage(
     const target = (event.target as HTMLElement).closest<HTMLElement>('button');
     if (!target || !snapshot) return;
 
+    // Mobile region tabs.
+    const panelChoice = target.dataset['panel'];
+    if (panelChoice) {
+      panel = panelChoice === 'finals' ? 'finals' : (Number(panelChoice) as MobilePanel);
+      render();
+      return;
+    }
+
+    // A team in the bracket. Clicking the current winner undoes it, so there
+    // is no separate clear control to hunt for.
+    const bracketSlot = target.dataset['slot'];
+    const team = target.dataset['team'];
+    if (bracketSlot && team) {
+      const game = snapshot.bracket.games.find((g: Game) => g.slot === bracketSlot);
+      const winner = game?.winner === team ? null : team;
+      void guard(async () => {
+        snapshot = await setResult(snapshot!, bracketSlot, winner, admin.email);
+        notice = {
+          kind: 'notice',
+          text: winner ? `${bracketSlot} set.` : `${bracketSlot} cleared.`,
+        };
+      });
+      return;
+    }
+
     const paidId = target.dataset['paid'];
     if (paidId) {
       const value = target.dataset['value'] === 'true';
       void guard(async () => {
         snapshot = await setPaid(snapshot!, paidId, value, admin.email);
         notice = { kind: 'notice', text: `Marked ${value ? 'paid' : 'unpaid'}.` };
-      });
-      return;
-    }
-
-    const slot = target.dataset['slot'];
-    if (slot) {
-      const clear = target.dataset['clear'] === '1';
-      const winner = clear ? null : target.dataset['winner'] ?? null;
-      void guard(async () => {
-        snapshot = await setResult(snapshot!, slot, winner, admin.email);
-        notice = { kind: 'notice', text: `${slot} ${clear ? 'cleared' : 'set'}.` };
       });
       return;
     }
@@ -228,6 +248,7 @@ export function mountAdminPage(
 
   return () => {
     disposed = true;
+    mobile.removeEventListener('change', onMediaChange);
     root.removeEventListener('click', onClick);
   };
 }
