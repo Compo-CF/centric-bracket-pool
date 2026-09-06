@@ -168,15 +168,42 @@ cd C:\Users\anthony.compofelice\centric-bracket-pool; .\scripts\set-repo-vars.ps
 Variables rather than secrets on purpose: the Firebase web config is public by
 design, and the security rules are what protect the data.
 
-### 8. Make yourself an admin
+### 8. Get a service account key
+
+Steps 9 and 10 both write as the service account, which bypasses the security
+rules. Firebase console &rarr; Project settings &rarr; Service accounts &rarr; Generate new
+private key, and save the file as `serviceAccount.json` in the repo root. It is
+gitignored — never commit it, and never paste it anywhere.
+
+### 9. Seed the pool settings
+
+**Do not skip this.** `firestore.rules` reads `lockTime` and `isOpen` out of
+`config/pool`. While that document is missing, every rule touching it errors and
+denies, so entries fail with a permission error even though the database exists
+and the rules are correct.
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; node scripts/seed-config.mjs
+```
+
+That writes the 2027 pool: $10 entry, 50/30/20 split, last-place refund, 5
+brackets per person, and a **placeholder** lock time. Set the real first tip once
+the NCAA publishes the schedule:
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; node scripts/seed-config.mjs --lock 2027-03-18T16:00:00Z --force
+```
+
+Re-running without `--force` prints the current settings instead of overwriting
+them.
+
+### 10. Make yourself an admin
 
 `firestore.rules` gates every write to `/tournament` and `/config` on an `admin`
 custom claim, so until this runs nobody can operate the pool — not even the
 person who created the project.
 
-Sign in to the app once so the account exists. Then Firebase console &rarr;
-Project settings &rarr; Service accounts &rarr; Generate new private key, and save the
-file as `serviceAccount.json` in the repo root (gitignored — never commit it):
+Sign in to the app once so the account exists, then:
 
 ```powershell
 cd C:\Users\anthony.compofelice\centric-bracket-pool; node scripts/grant-admin.mjs anthony.compofelice@centricfiber.com
