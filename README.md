@@ -68,20 +68,118 @@ Without Firebase settings the app still runs: entries are kept in `localStorage`
 
 The UI only ever talks to the `PoolStore` interface in `src/lib/store.ts`, so swapping `LocalStore` for a Firestore implementation is a one-file change.
 
-## Setup still to do
+## Firebase setup
 
-1. **Create the Firebase project** and enable Firestore in Native mode.
-2. **Register an app in Entra** (Azure portal → App registrations). Redirect
-   URI is `https://<project-id>.firebaseapp.com/__/auth/handler`. Note the
-   application (client) ID, a client secret, and the directory (tenant) ID.
-3. **Enable Microsoft** in Firebase Auth → Sign-in method, pasting the client
-   ID and secret.
-4. **Add the Pages domain** to Firebase Auth → Settings → Authorised domains.
-   Sign-in fails silently without this.
-5. **Publish `firestore.rules`** to the project.
-6. **Set repository variables** (Settings → Secrets and variables → Actions →
-   Variables) for each `VITE_*` name in `.env.example`.
-7. **Enable Pages** with source "GitHub Actions".
+Roughly 30 minutes, except step 3, which waits on IT.
+
+### 1. Firebase project and Firestore
+
+[console.firebase.google.com](https://console.firebase.google.com) &rarr; Add project.
+Google Analytics is not needed.
+
+Build &rarr; Firestore Database &rarr; Create database:
+
+- **Production mode.** The rules in this repo replace the defaults in step 6.
+- **Location `us-south1` (Dallas)**, or `nam5` for US multi-region.
+  **This cannot be changed later.**
+
+### 2. Web app config
+
+Project settings &rarr; General &rarr; Your apps &rarr; Web (`</>`) &rarr; register the app.
+Firebase shows a `firebaseConfig` object. Copy `.env.example` to `.env.local`
+and paste each value across:
+
+| firebaseConfig key | `.env.local` |
+| --- | --- |
+| `apiKey` | `VITE_FIREBASE_API_KEY` |
+| `authDomain` | `VITE_FIREBASE_AUTH_DOMAIN` |
+| `projectId` | `VITE_FIREBASE_PROJECT_ID` |
+| `storageBucket` | `VITE_FIREBASE_STORAGE_BUCKET` |
+| `messagingSenderId` | `VITE_FIREBASE_MESSAGING_SENDER_ID` |
+| `appId` | `VITE_FIREBASE_APP_ID` |
+
+Also set `projects.default` in `.firebaserc` to the project id.
+
+### 3. Entra app registration (start this first, it waits on someone else)
+
+Azure portal &rarr; Microsoft Entra ID &rarr; App registrations &rarr; New registration:
+
+- Name: **Centric Bracket Pool**
+- Account types: **Accounts in this organizational directory only (single tenant)**
+- Redirect URI: **Web**, set to
+  `https://<projectId>.firebaseapp.com/__/auth/handler`
+
+From the overview page copy the **Application (client) ID** and the
+**Directory (tenant) ID**. The tenant id goes in `VITE_MICROSOFT_TENANT_ID`.
+
+Certificates & secrets &rarr; New client secret. **Copy the Value, not the Secret
+ID** — the Value is shown once and cannot be retrieved afterwards.
+
+### 4. Turn on Microsoft sign-in
+
+Firebase console &rarr; Authentication &rarr; Sign-in method &rarr; Microsoft &rarr; Enable.
+Paste the application (client) id and the client secret **Value**.
+
+Confirm the callback URL Firebase displays matches the redirect URI from step 3.
+
+### 5. Authorised domains
+
+Authentication &rarr; Settings &rarr; Authorised domains &rarr; Add domain:
+**`compo-cf.github.io`**
+
+Miss this and sign-in fails silently in production, with nothing useful in the
+console. It is the easiest step to skip and the hardest to diagnose.
+
+### 6. Publish the security rules
+
+```powershell
+npm install -g firebase-tools
+```
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; firebase login
+```
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; firebase deploy --only firestore:rules
+```
+
+### 7. Push the config to GitHub
+
+Reads `.env.local` and sets every `VITE_*` as an Actions repository variable, so
+the deployed build reads the same configuration as local dev:
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; .\scripts\set-repo-vars.ps1
+```
+
+Variables rather than secrets on purpose: the Firebase web config is public by
+design, and the security rules are what protect the data.
+
+### 8. Make yourself an admin
+
+`firestore.rules` gates every write to `/tournament` and `/config` on an `admin`
+custom claim, so until this runs nobody can operate the pool — not even the
+person who created the project.
+
+Sign in to the app once so the account exists. Then Firebase console &rarr;
+Project settings &rarr; Service accounts &rarr; Generate new private key, and save the
+file as `serviceAccount.json` in the repo root (gitignored — never commit it):
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; node scripts/grant-admin.mjs anthony.compofelice@centricfiber.com
+```
+
+Sign out and back in for the new token to take effect.
+
+### Check it worked
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; npm run dev
+```
+
+The setup checklist should be gone, replaced by a Microsoft sign-in button. If a
+variable is still missing, the page names it.
 
 ## Design decisions worth knowing
 
