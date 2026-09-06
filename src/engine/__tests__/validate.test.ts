@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { legalTeamsForSlot, prunePicks, setPick, validateEntry } from '../validate.js';
+import {
+  legalTeamsForSlot, projectEntryBracket, prunePicks, setPick, validateEntry,
+} from '../validate.js';
 import { TOTAL_SLOTS } from '../types.js';
 import { chalkPicks, makeEntry, seededBracket, teamId } from './fixtures.js';
 
@@ -106,5 +108,40 @@ describe('pruning', () => {
     const before = { ...picks };
     setPick(picks, 'R1-01', teamId(1, 16), games);
     expect(picks).toEqual(before);
+  });
+});
+
+describe('projecting an entry bracket', () => {
+  it('shows the entrant own picks as the later-round matchups', () => {
+    const { games, picks } = setup();
+    const projected = projectEntryBracket(games, picks);
+    const r2 = projected.find((g) => g.slot === 'R2-01')!;
+    expect(r2.teamA).toBe(picks['R1-01']);
+    expect(r2.teamB).toBe(picks['R1-02']);
+    expect(projected.find((g) => g.slot === 'R6-01')!.winner).toBe(picks['R6-01']);
+  });
+
+  it('leaves later rounds empty while the feeding picks are unmade', () => {
+    const { games } = setup();
+    const projected = projectEntryBracket(games, { 'R1-01': teamId(1, 1) });
+    const r2 = projected.find((g) => g.slot === 'R2-01')!;
+    expect(r2.teamA).toBe(teamId(1, 1));
+    expect(r2.teamB).toBeNull();
+    expect(projected.find((g) => g.slot === 'R3-01')!.teamA).toBeNull();
+  });
+
+  it('does not touch the real round-1 field', () => {
+    const { games, picks } = setup();
+    const projected = projectEntryBracket(games, picks);
+    const r1 = projected.find((g) => g.slot === 'R1-01')!;
+    expect(r1.teamA).toBe(teamId(1, 1));
+    expect(r1.teamB).toBe(teamId(1, 16));
+  });
+
+  it('reflects an upset pick all the way up', () => {
+    const { games, picks } = setup();
+    const upset = setPick(picks, 'R1-01', teamId(1, 16), games);
+    const projected = projectEntryBracket(games, upset);
+    expect(projected.find((g) => g.slot === 'R2-01')!.teamA).toBe(teamId(1, 16));
   });
 });

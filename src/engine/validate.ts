@@ -6,7 +6,7 @@
  */
 
 import { allSlots, feedersOf, parseSlot } from './bracket.js';
-import { indexGames } from './results.js';
+import { indexGames, propagateWinners } from './results.js';
 import { TOTAL_SLOTS, type Entry, type Game, type SlotId, type TeamId } from './types.js';
 
 export interface PickProblem {
@@ -109,4 +109,17 @@ export function setPick(
   games: readonly Game[],
 ): Record<SlotId, TeamId> {
   return prunePicks({ ...picks, [slot]: team }, games);
+}
+
+/**
+ * The bracket as this entry sees it: each slot's "winner" is the entry's own
+ * pick, propagated upward. This is what the entry UI renders -- in rounds 2
+ * and up the matchup shown is the one the entrant themselves created, not the
+ * real field, which is still empty before the games are played.
+ */
+export function projectEntryBracket(
+  games: readonly Game[],
+  picks: Readonly<Record<SlotId, TeamId>>,
+): Game[] {
+  return propagateWinners(games.map((g) => ({ ...g, winner: picks[g.slot] ?? null })));
 }

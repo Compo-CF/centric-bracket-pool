@@ -10,8 +10,8 @@ Firestore behind it, results synced from ESPN with an admin override.
 | Phase | What it covers | State |
 | --- | --- | --- |
 | 0 | Repo, Firebase wiring, Entra sign-in, security rules, deploy | Code done, needs a Firebase project |
-| 1 | Bracket engine, scoring, ceilings, validation | **Done — 72 tests passing** |
-| 2 | Bracket entry UI, desktop and mobile | Not started |
+| 1 | Bracket engine, scoring, ceilings, validation | **Done — 76 tests passing** |
+| 2 | Bracket entry UI, desktop and mobile | **Done — runs against a local store** |
 | 3 | Results sync job, admin override | Not started |
 | 4 | Standings, bracket viewer, scoreboard, insights | Not started |
 | 5 | Replay the 2026 tournament to prove the scoring | Not started |
@@ -57,13 +57,16 @@ run identically in the browser and in the results sync job.
 
 ```bash
 npm install
-npm test          # 72 tests
+npm test          # 76 tests
 npm run typecheck
 npm run dev
 ```
 
-Without Firebase settings the app renders a setup checklist rather than
-white-screening. Copy `.env.example` to `.env.local` once the project exists.
+### Local mode
+
+Without Firebase settings the app still runs: entries are kept in `localStorage` and the bracket uses a sample field. Both are labelled on every screen that shows them. Copy `.env.example` to `.env.local` once the project exists to switch to the real thing.
+
+The UI only ever talks to the `PoolStore` interface in `src/lib/store.ts`, so swapping `LocalStore` for a Firestore implementation is a one-file change.
 
 ## Setup still to do
 
