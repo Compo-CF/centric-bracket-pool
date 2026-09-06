@@ -13,14 +13,14 @@
  * otherwise from `gcloud auth application-default login`.
  *
  * Usage:
- *   node scripts/seed-config.mjs
- *   node scripts/seed-config.mjs --lock 2027-03-19T16:00:00Z
- *   node scripts/seed-config.mjs --force        (overwrite existing settings)
+ *   npm run pool:seed-config --
+ *   npm run pool:seed-config -- --lock 2027-03-19T16:00:00Z
+ *   npm run pool:seed-config -- --force        (overwrite existing settings)
  */
 
 import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 
-import { initAdmin } from './lib/admin-app.mjs';
+import { initAdmin } from './lib/admin-app.js';
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -74,5 +74,5 @@ console.log(JSON.stringify({ ...config, lockTime: lockDate.toISOString() }, null
 if (!args.includes('--lock')) {
   console.log('\nlockTime is a PLACEHOLDER.');
   console.log('Set the real first tip once the NCAA publishes the 2027 schedule:');
-  console.log('  node scripts/seed-config.mjs --lock <ISO timestamp> --force');
+  console.log('  npm run pool:seed-config -- --lock <ISO timestamp> --force');
 }

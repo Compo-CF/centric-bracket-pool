@@ -25,6 +25,7 @@ import { LocalStore, newEntry, type PoolStore, type StoredEntry } from './lib/st
 import { FirestoreStore } from './lib/firestoreStore.js';
 import { escapeHtml } from './ui/bracket.js';
 import { mountEntryPage } from './ui/entryPage.js';
+import { mountStandingsPage } from './ui/standingsPage.js';
 
 const root = document.querySelector<HTMLElement>('#app')!;
 
@@ -78,6 +79,7 @@ function nav(active: string): string {
   const links = [
     ['#/', 'Rules'],
     ['#/entries', 'My entries'],
+    ['#/standings', 'Standings'],
   ];
   return `<nav class="topnav">${links.map(([href, label]) =>
     `<a href="${href}" class="${href === active ? 'active' : ''}">${label}</a>`).join('')}</nav>`;
@@ -107,10 +109,11 @@ function userBar(): string {
     &middot; <button type="button" id="sign-out" class="linklike">Sign out</button></p>`;
 }
 
-function wireSignOut(): void {
-  root.querySelector<HTMLButtonElement>('#sign-out')
-    ?.addEventListener('click', () => { void signOut(); });
-}
+// Delegated once at boot, so it survives every re-render including the
+// standings page redrawing itself on each snapshot.
+root.addEventListener('click', (event) => {
+  if ((event.target as HTMLElement).closest('#sign-out')) void signOut();
+});
 
 function renderHome(): void {
   const ladder = ([1, 2, 3, 4, 5, 6] as Round[]).map((r) =>
@@ -171,7 +174,6 @@ function renderHome(): void {
 
   root.querySelector<HTMLButtonElement>('#go-entries')!
     .addEventListener('click', () => { window.location.hash = '#/entries'; });
-  wireSignOut();
 }
 
 function entryRow(entry: StoredEntry): string {
@@ -227,8 +229,6 @@ async function renderEntries(): Promise<void> {
     await store.remove(id);
     void renderEntries();
   });
-
-  wireSignOut();
 }
 
 async function renderEntry(id: string): Promise<void> {
@@ -252,12 +252,23 @@ async function renderEntry(id: string): Promise<void> {
   });
 }
 
+function renderStandings(): void {
+  root.className = 'shell';
+  cleanup = mountStandingsPage(root, () => `
+    <p class="eyebrow">Centric Fiber</p>
+    <h1>Standings</h1>
+    ${userBar()}
+    ${nav('#/standings')}
+  `);
+}
+
 function route(): void {
   cleanup?.();
   cleanup = null;
   const path = window.location.hash.replace(/^#/, '') || '/';
   if (path.startsWith('/entry/')) void renderEntry(path.slice('/entry/'.length));
   else if (path === '/entries') void renderEntries();
+  else if (path === '/standings') renderStandings();
   else renderHome();
 }
 

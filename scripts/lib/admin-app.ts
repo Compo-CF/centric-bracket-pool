@@ -2,7 +2,6 @@
  * Initialises firebase-admin for the local scripts.
  *
  * Two credential paths, tried in order:
- *
  *   1. serviceAccount.json in the repo root, if present.
  *   2. Application Default Credentials, from `gcloud auth application-default
  *      login`.
@@ -21,19 +20,26 @@ import { applicationDefault, cert, initializeApp } from 'firebase-admin/app';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 
+export interface AdminContext {
+  projectId: string;
+  via: string;
+}
+
 /** Read the project id from .firebaserc so it is configured in one place. */
-function projectIdFromFirebaserc() {
+function projectIdFromFirebaserc(): string | undefined {
   const path = resolve(root, '.firebaserc');
   if (!existsSync(path)) return undefined;
   try {
-    const id = JSON.parse(readFileSync(path, 'utf8'))?.projects?.default;
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as
+      { projects?: { default?: string } };
+    const id = parsed.projects?.default;
     return id && id !== 'REPLACE_WITH_PROJECT_ID' ? id : undefined;
   } catch {
     return undefined;
   }
 }
 
-function reportNoCredentials() {
+function reportNoCredentials(): void {
   console.error('No usable credentials found.\n');
   console.error('Sign in with gcloud (recommended -- no key file, and the');
   console.error('subtlefoodie.com org policy blocks key creation anyway):\n');
@@ -44,16 +50,17 @@ function reportNoCredentials() {
 
 /**
  * Async because ADC only fails when a token is first requested, not at
- * initializeApp. Fetching one up front turns a stack trace at some later line
- * into a clear message before any work starts.
+ * initializeApp. Fetching one up front turns a stack trace several lines into
+ * the work into a clear message before anything starts.
  */
-export async function initAdmin() {
+export async function initAdmin(): Promise<AdminContext> {
   const keyPath = resolve(root, 'serviceAccount.json');
   const projectId = projectIdFromFirebaserc();
 
   if (existsSync(keyPath)) {
-    initializeApp({ credential: cert(JSON.parse(readFileSync(keyPath, 'utf8'))) });
-    return { projectId, via: 'serviceAccount.json' };
+    const key = JSON.parse(readFileSync(keyPath, 'utf8')) as Record<string, unknown>;
+    initializeApp({ credential: cert(key as never) });
+    return { projectId: projectId ?? String(key['project_id'] ?? ''), via: 'serviceAccount.json' };
   }
 
   if (!projectId) {
