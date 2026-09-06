@@ -8,8 +8,9 @@
  * every entry read and write, with a working database and correct rules --
  * which is a miserable thing to debug.
  *
- * Writes as the service account, which bypasses rules, so this works before
- * anyone has the admin claim.
+ * Writes with admin credentials, which bypass rules, so this works before
+ * anyone is an admin. Credentials come from serviceAccount.json if present,
+ * otherwise from `gcloud auth application-default login`.
  *
  * Usage:
  *   node scripts/seed-config.mjs
@@ -17,15 +18,9 @@
  *   node scripts/seed-config.mjs --force        (overwrite existing settings)
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
-
-import { cert, initializeApp } from 'firebase-admin/app';
 import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const keyPath = resolve(here, '..', 'serviceAccount.json');
+import { initAdmin } from './lib/admin-app.mjs';
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -42,14 +37,9 @@ if (Number.isNaN(lockDate.getTime())) {
   process.exit(1);
 }
 
-if (!existsSync(keyPath)) {
-  console.error(`No service account key at ${keyPath}`);
-  console.error('Firebase console -> Project settings -> Service accounts ->');
-  console.error('Generate new private key, and save it there as serviceAccount.json.');
-  process.exit(1);
-}
+const { projectId, via } = await initAdmin();
+console.log(`Using ${via}${projectId ? ` for ${projectId}` : ''}.`);
 
-initializeApp({ credential: cert(JSON.parse(readFileSync(keyPath, 'utf8'))) });
 const db = getFirestore();
 const ref = db.doc('config/pool');
 

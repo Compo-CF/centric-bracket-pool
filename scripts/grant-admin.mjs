@@ -6,10 +6,10 @@
  * Firebase project. Custom claims can only be set from a privileged context,
  * which is why this runs server-side against a service account.
  *
- * Setup:
- *   Firebase console -> Project settings -> Service accounts
- *   -> Generate new private key -> save as serviceAccount.json in the repo root.
- *   It is gitignored. Do not commit it, and do not paste it anywhere.
+ * Credentials come from serviceAccount.json if present, otherwise from
+ * `gcloud auth application-default login`. The subtlefoodie.com organisation
+ * enforces iam.disableServiceAccountKeyCreation, so gcloud is usually the only
+ * route -- and the better one, since nothing long-lived lands on disk.
  *
  * Usage:
  *   node scripts/grant-admin.mjs someone@centricfiber.com
@@ -18,15 +18,9 @@
  * The person must have signed in at least once first, so the account exists.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
-
-import { cert, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const keyPath = resolve(here, '..', 'serviceAccount.json');
+import { initAdmin } from './lib/admin-app.mjs';
 
 const [email, ...flags] = process.argv.slice(2);
 const revoke = flags.includes('--revoke');
@@ -36,14 +30,8 @@ if (!email || !email.includes('@')) {
   process.exit(1);
 }
 
-if (!existsSync(keyPath)) {
-  console.error(`No service account key at ${keyPath}`);
-  console.error('Firebase console -> Project settings -> Service accounts ->');
-  console.error('Generate new private key, and save it there as serviceAccount.json.');
-  process.exit(1);
-}
-
-initializeApp({ credential: cert(JSON.parse(readFileSync(keyPath, 'utf8'))) });
+const { projectId, via } = await initAdmin();
+console.log(`Using ${via}${projectId ? ` for ${projectId}` : ''}.`);
 
 try {
   const user = await getAuth().getUserByEmail(email);

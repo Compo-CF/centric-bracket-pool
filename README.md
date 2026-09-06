@@ -168,12 +168,24 @@ cd C:\Users\anthony.compofelice\centric-bracket-pool; .\scripts\set-repo-vars.ps
 Variables rather than secrets on purpose: the Firebase web config is public by
 design, and the security rules are what protect the data.
 
-### 8. Get a service account key
+### 8. Admin credentials
 
-Steps 9 and 10 both write as the service account, which bypasses the security
-rules. Firebase console &rarr; Project settings &rarr; Service accounts &rarr; Generate new
-private key, and save the file as `serviceAccount.json` in the repo root. It is
-gitignored — never commit it, and never paste it anywhere.
+Steps 9 and 10 write with admin credentials, which bypass the security rules.
+
+The `subtlefoodie.com` organisation enforces
+`iam.disableServiceAccountKeyCreation`, so downloading a service account key is
+blocked. Use gcloud instead -- it is the better option anyway, since nothing
+long-lived ends up on disk:
+
+```powershell
+gcloud auth application-default login
+```
+
+Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) first if it
+is not present. The scripts pick these credentials up automatically.
+
+If a key file is ever preferred, relax that org policy for this project and drop
+`serviceAccount.json` in the repo root; the scripts use it when present.
 
 ### 9. Seed the pool settings
 
