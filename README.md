@@ -13,7 +13,7 @@ Firestore behind it, results synced from ESPN with an admin override.
 | 1 | Bracket engine, scoring, ceilings, validation, prizes | **Done — 96 tests passing** |
 | 2 | Bracket entry UI, desktop and mobile | **Done — entries in Firestore** |
 | 3 | Results sync job, admin override | Not started |
-| 4 | Standings, bracket viewer, scoreboard, insights | Not started |
+| 4 | Standings and projected payouts | **Done** — bracket viewer, scoreboard and insights still to come |
 | 5 | Replay the 2026 tournament to prove the scoring | Not started |
 | 6 | Dress rehearsal with real colleagues | Not started |
 | 7 | Go live on Selection Sunday | Not started |
@@ -195,7 +195,7 @@ denies, so entries fail with a permission error even though the database exists
 and the rules are correct.
 
 ```powershell
-cd C:\Users\anthony.compofelice\centric-bracket-pool; node scripts/seed-config.mjs
+cd C:\Users\anthony.compofelice\centric-bracket-pool; npm run pool:seed-config
 ```
 
 That writes the 2027 pool: $10 entry, 50/30/20 split, last-place refund, 5
@@ -203,7 +203,7 @@ brackets per person, and a **placeholder** lock time. Set the real first tip onc
 the NCAA publishes the schedule:
 
 ```powershell
-cd C:\Users\anthony.compofelice\centric-bracket-pool; node scripts/seed-config.mjs --lock 2027-03-18T16:00:00Z --force
+cd C:\Users\anthony.compofelice\centric-bracket-pool; npm run pool:seed-config -- --lock 2027-03-18T16:00:00Z --force
 ```
 
 Re-running without `--force` prints the current settings instead of overwriting
@@ -218,10 +218,28 @@ person who created the project.
 Sign in to the app once so the account exists, then:
 
 ```powershell
-cd C:\Users\anthony.compofelice\centric-bracket-pool; node scripts/grant-admin.mjs anthony.compofelice@centricfiber.com
+cd C:\Users\anthony.compofelice\centric-bracket-pool; npm run pool:grant-admin -- anthony.compofelice@centricfiber.com
 ```
 
 Sign out and back in for the new token to take effect.
+
+### 11. Seed the bracket and build the standings
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; npm run pool:seed-bracket; npm run pool:standings
+```
+
+## Pool operations
+
+| Command | What it does |
+| --- | --- |
+| `npm run pool:status` | Prints live settings, entries and admins |
+| `npm run pool:seed-config` | Writes `config/pool` — the security rules depend on it |
+| `npm run pool:seed-bracket` | Writes `tournament/bracket` — the field and 63 slots |
+| `npm run pool:standings` | Recomputes `tournament/standings` |
+| `npm run pool:grant-admin -- <email>` | Grants the admin claim |
+
+All of them use gcloud application-default credentials.
 
 ### Check it worked
 
