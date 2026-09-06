@@ -17,37 +17,41 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { buildEmptyBracket, seedBracket } from '../src/engine/bracket.js';
 import { sampleField } from '../src/data/sampleField.js';
 import { initAdmin } from './lib/admin-app.js';
+import { ScriptExit, run } from './lib/exit.js';
 
-const force = process.argv.includes('--force');
+await run(async () => {
+  const force = process.argv.includes('--force');
 
-const { projectId, via } = await initAdmin();
-console.log(`Using ${via} for ${projectId}.`);
+  const { projectId, via } = await initAdmin();
+  console.log(`Using ${via} for ${projectId}.`);
 
-const db = getFirestore();
-const ref = db.doc('tournament/bracket');
+  const db = getFirestore();
+  const ref = db.doc('tournament/bracket');
 
-const existing = await ref.get();
-if (existing.exists && !force) {
-  const data = existing.data();
-  const decided = (data?.games ?? []).filter((g: { winner: string | null }) => g.winner).length;
-  console.log(`tournament/bracket already exists: ${data?.teams?.length ?? 0} teams, ` +
-    `${decided} of 63 games decided.`);
-  console.log('\nPass --force to overwrite. That discards every recorded result.');
-  process.exit(0);
-}
+  const existing = await ref.get();
+  if (existing.exists && !force) {
+    const data = existing.data();
+    const decided = (data?.games ?? []).filter((g: { winner: string | null }) => g.winner).length;
+    console.log(`tournament/bracket already exists: ${data?.teams?.length ?? 0} teams, ` +
+      `${decided} of 63 games decided.`);
+    console.log('\nPass --force to overwrite. That discards every recorded result.');
+    throw new ScriptExit(0);
+  }
 
-const teams = sampleField();
-const games = seedBracket(buildEmptyBracket(), teams);
+  const teams = sampleField();
+  const games = seedBracket(buildEmptyBracket(), teams);
 
-await ref.set({
-  // Flipped to false when a real field is imported on Selection Sunday.
-  isSampleField: true,
-  updatedAt: new Date().toISOString(),
-  teams,
-  games,
+  await ref.set({
+    // Flipped to false when a real field is imported on Selection Sunday.
+    isSampleField: true,
+    updatedAt: new Date().toISOString(),
+    teams,
+    games,
+  });
+
+  console.log(`Wrote tournament/bracket${force && existing.exists ? ' (overwritten)' : ''}.`);
+  console.log(`  teams   ${teams.length}`);
+  console.log(`  games   ${games.length}`);
+  console.log(`  sample  true  -- replace before the pool goes live`);
+
 });
-
-console.log(`Wrote tournament/bracket${force && existing.exists ? ' (overwritten)' : ''}.`);
-console.log(`  teams   ${teams.length}`);
-console.log(`  games   ${games.length}`);
-console.log(`  sample  true  -- replace before the pool goes live`);

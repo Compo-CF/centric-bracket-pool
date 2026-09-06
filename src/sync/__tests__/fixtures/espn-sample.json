@@ -1,0 +1,59 @@
+{
+  "_note": "Real responses from site.api.espn.com, trimmed to the fields the parser reads with the nesting left intact. Two events: the 2026 national championship, and a First Four game the parser must exclude.",
+  "events": [
+    {
+      "id": "401856600",
+      "date": "2026-04-07T00:50Z",
+      "shortName": "CONN VS MICH",
+      "status": { "type": { "name": "STATUS_FINAL", "completed": true } },
+      "competitions": [
+        {
+          "id": "401856600",
+          "notes": [
+            { "type": "event", "headline": "NCAA Men's Basketball Championship - National Championship" }
+          ],
+          "status": { "type": { "name": "STATUS_FINAL" } },
+          "competitors": [
+            {
+              "id": "130", "homeAway": "home", "winner": true, "score": "69",
+              "curatedRank": { "current": 1 },
+              "team": { "id": "130", "abbreviation": "MICH", "shortDisplayName": "Michigan", "displayName": "Michigan Wolverines" }
+            },
+            {
+              "id": "41", "homeAway": "away", "winner": false, "score": "63",
+              "curatedRank": { "current": 2 },
+              "team": { "id": "41", "abbreviation": "CONN", "shortDisplayName": "UConn", "displayName": "UConn Huskies" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "401856434",
+      "date": "2026-03-18T01:29Z",
+      "shortName": "TEX VS NCSU",
+      "status": { "type": { "name": "STATUS_FINAL", "completed": true } },
+      "competitions": [
+        {
+          "id": "401856434",
+          "notes": [
+            { "type": "event", "headline": "NCAA Men's Basketball Championship - West Region - First Four" }
+          ],
+          "status": { "type": { "name": "STATUS_FINAL" } },
+          "competitors": [
+            {
+              "id": "152", "homeAway": "home", "winner": false, "score": "66",
+              "curatedRank": { "current": 11 },
+              "team": { "id": "152", "abbreviation": "NCSU", "shortDisplayName": "NC State", "displayName": "NC State Wolfpack" }
+            },
+            {
+              "id": "251", "homeAway": "away", "winner": true, "score": "68",
+              "curatedRank": { "current": 11 },
+              "team": { "id": "251", "abbreviation": "TEX", "shortDisplayName": "Texas", "displayName": "Texas Longhorns" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

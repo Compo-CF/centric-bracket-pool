@@ -1,0 +1,79 @@
+name: Sync results
+
+# Every 10 minutes, but only actually does anything while SYNC_ENABLED is
+# "true". A repository variable is a deliberately dumb switch: no date maths to
+# get wrong, and no traffic at ESPN in July. Flip it on for the tournament.
+#
+# GitHub's scheduler is best-effort and queues behind platform load, so treat
+# this as the settlement path. The browser polls ESPN directly for live scores
+# between runs.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Start date YYYYMMDD (default: yesterday)'
+        required: false
+      to:
+        description: 'End date YYYYMMDD (default: today)'
+        required: false
+      dry_run:
+        description: 'Report without writing'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  # Required for Workload Identity Federation: the job exchanges GitHub's OIDC
+  # token for Google credentials, so no service account key exists to leak.
+  id-token: write
+
+concurrency:
+  group: sync-results
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the switch
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ vars.SYNC_ENABLED }}" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "SYNC_ENABLED is not \"true\" -- skipping."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+        if: steps.gate.outputs.run == 'true'
+
+      - name: Authenticate to Google Cloud
+        if: steps.gate.outputs.run == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SYNC_SERVICE_ACCOUNT }}
+
+      - name: Sync results
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.from }}" ]; then ARGS="$ARGS --from ${{ inputs.from }}"; fi
+          if [ -n "${{ inputs.to }}" ]; then ARGS="$ARGS --to ${{ inputs.to }}"; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          npm run pool:sync -- $ARGS

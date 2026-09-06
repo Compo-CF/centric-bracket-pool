@@ -15,7 +15,10 @@
     "pool:seed-config": "tsx scripts/seed-config.ts",
     "pool:seed-bracket": "tsx scripts/seed-bracket.ts",
     "pool:standings": "tsx scripts/rebuild-standings.ts",
-    "pool:grant-admin": "tsx scripts/grant-admin.ts"
+    "pool:grant-admin": "tsx scripts/grant-admin.ts",
+    "pool:sync": "tsx scripts/sync-results.ts",
+    "pool:set-result": "tsx scripts/set-result.ts",
+    "pool:import-field": "tsx scripts/import-field.ts"
   },
   "devDependencies": {
     "firebase-admin": "^14.3.0",

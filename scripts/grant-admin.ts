@@ -21,33 +21,37 @@
 import { getAuth } from 'firebase-admin/auth';
 
 import { initAdmin } from './lib/admin-app.js';
+import { ScriptExit, run } from './lib/exit.js';
 
-const [email, ...flags] = process.argv.slice(2);
-const revoke = flags.includes('--revoke');
+await run(async () => {
+  const [email, ...flags] = process.argv.slice(2);
+  const revoke = flags.includes('--revoke');
 
-if (!email || !email.includes('@')) {
-  console.error('Usage: npm run pool:grant-admin -- <email> [--revoke]');
-  process.exit(1);
-}
-
-const { projectId, via } = await initAdmin();
-console.log(`Using ${via}${projectId ? ` for ${projectId}` : ''}.`);
-
-try {
-  const user = await getAuth().getUserByEmail(email);
-  const existing = user.customClaims ?? {};
-
-  await getAuth().setCustomUserClaims(user.uid, revoke
-    ? { ...existing, admin: false }
-    : { ...existing, admin: true });
-
-  console.log(`${revoke ? 'Revoked' : 'Granted'} admin for ${email} (${user.uid}).`);
-  console.log('They need to sign out and back in for the new token to take effect.');
-} catch (error) {
-  if ((error as { code?: string })?.code === 'auth/user-not-found') {
-    console.error(`No account for ${email} yet.`);
-    console.error('Ask them to sign in to the pool once, then run this again.');
-    process.exit(1);
+  if (!email || !email.includes('@')) {
+    console.error('Usage: npm run pool:grant-admin -- <email> [--revoke]');
+    throw new ScriptExit(1);
   }
-  throw error;
-}
+
+  const { projectId, via } = await initAdmin();
+  console.log(`Using ${via}${projectId ? ` for ${projectId}` : ''}.`);
+
+  try {
+    const user = await getAuth().getUserByEmail(email);
+    const existing = user.customClaims ?? {};
+
+    await getAuth().setCustomUserClaims(user.uid, revoke
+      ? { ...existing, admin: false }
+      : { ...existing, admin: true });
+
+    console.log(`${revoke ? 'Revoked' : 'Granted'} admin for ${email} (${user.uid}).`);
+    console.log('They need to sign out and back in for the new token to take effect.');
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'auth/user-not-found') {
+      console.error(`No account for ${email} yet.`);
+      console.error('Ask them to sign in to the pool once, then run this again.');
+      throw new ScriptExit(1);
+    }
+    throw error;
+  }
+
+});
