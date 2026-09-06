@@ -16,7 +16,10 @@
 [CmdletBinding()]
 param(
     [string] $ConfigFile = "firebase-config.txt",
-    [string] $OutFile    = ".env.local"
+    [string] $OutFile    = ".env.local",
+    # Directory (tenant) ID from the Entra app registration overview. Optional
+    # only because it can be pasted into .env.local by hand instead.
+    [string] $TenantId   = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,7 +63,10 @@ foreach ($key in $map.Keys) {
 if (-not $existing.Contains("VITE_ALLOWED_EMAIL_DOMAIN")) {
     $existing["VITE_ALLOWED_EMAIL_DOMAIN"] = "centricfiber.com"
 }
-if (-not $existing.Contains("VITE_MICROSOFT_TENANT_ID")) {
+if ($TenantId -ne "") {
+    $existing["VITE_MICROSOFT_TENANT_ID"] = $TenantId
+}
+elseif (-not $existing.Contains("VITE_MICROSOFT_TENANT_ID")) {
     $existing["VITE_MICROSOFT_TENANT_ID"] = ""
 }
 
