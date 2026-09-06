@@ -11,7 +11,7 @@ import {
   type Game, type Team, type TeamId,
 } from '../engine/index.js';
 import {
-  loadAdminSnapshot, rebuildStandings, setPaid, setPoolOpen, setResult,
+  loadAdminSnapshot, rebuildStandings, setPaid, setPoolOpen, setResult, setScore,
   type AdminSnapshot,
 } from '../lib/adminStore.js';
 import {
@@ -108,6 +108,7 @@ export function mountAdminPage(
       picks,
       editable: true,
       overridden,
+      showScores: true,
     };
 
     return `<div class="panel">
@@ -119,6 +120,47 @@ export function mountAdminPage(
       <div class="bracket-scroll">
         ${mobile.matches ? renderMobile(view, panel) : renderDesktop(view)}
       </div>
+    </div>`;
+  }
+
+  function scoresPanel(): string {
+    const bracket = snapshot?.bracket;
+    if (!bracket) return '';
+
+    const decided = bracket.games.filter((g: Game) => g.winner !== null);
+    if (decided.length === 0) return '';
+
+    const named = new Map(bracket.teams.map((t: Team) => [t.id, t.name]));
+    const missing = decided.filter((g: Game) => g.scoreA === null || g.scoreB === null);
+    const title = bracket.games.find((g: Game) => g.slot === 'R6-01');
+    const titleNeedsScore = title?.winner !== null && title?.winner !== undefined
+      && (title.scoreA === null || title.scoreB === null);
+
+    const rows = decided.map((game: Game) => `<tr>
+      <td class="mono">${game.slot}</td>
+      <td>${escapeHtml(named.get(game.teamA ?? '') ?? '?')}</td>
+      <td><input type="number" min="0" max="200" inputmode="numeric"
+            class="score-input" data-score-a="${game.slot}"
+            value="${game.scoreA ?? ''}" /></td>
+      <td>${escapeHtml(named.get(game.teamB ?? '') ?? '?')}</td>
+      <td><input type="number" min="0" max="200" inputmode="numeric"
+            class="score-input" data-score-b="${game.slot}"
+            value="${game.scoreB ?? ''}" /></td>
+      <td><button type="button" class="secondary" data-save-score="${game.slot}">Save</button></td>
+    </tr>`).join('');
+
+    return `<div class="panel">
+      <h2>Scores</h2>
+      ${titleNeedsScore ? `<div class="error"><strong>The championship has no score.</strong>
+        The tiebreaker is that game's combined total, so until this is filled in
+        every tie in the pool -- including last place -- cannot be settled.</div>` : ''}
+      <p class="meta">The sync job fills these in from ESPN. They only need
+      touching for a game set by hand.
+      ${missing.length > 0
+        ? `<strong>${missing.length} of ${decided.length} decided game${
+            decided.length === 1 ? '' : 's'} still without a score.</strong>`
+        : 'All decided games have scores.'}</p>
+      <div class="scroller"><table class="board"><tbody>${rows}</tbody></table></div>
     </div>`;
   }
 
@@ -154,6 +196,7 @@ export function mountAdminPage(
       ${settingsPanel()}
       ${paymentsPanel()}
       ${resultsPanel()}
+      ${scoresPanel()}
     `;
   }
 
@@ -210,6 +253,28 @@ export function mountAdminPage(
       void guard(async () => {
         snapshot = await setPaid(snapshot!, paidId, value, admin.email);
         notice = { kind: 'notice', text: `Marked ${value ? 'paid' : 'unpaid'}.` };
+      });
+      return;
+    }
+
+    const saveScore = target.dataset['saveScore'];
+    if (saveScore) {
+      const read = (attr: string): number | null => {
+        const input = root.querySelector<HTMLInputElement>(`[data-${attr}="${saveScore}"]`);
+        const raw = input?.value.trim() ?? '';
+        return raw === '' ? null : Number(raw);
+      };
+      const scoreA = read('score-a');
+      const scoreB = read('score-b');
+      if ((scoreA !== null && !Number.isFinite(scoreA))
+        || (scoreB !== null && !Number.isFinite(scoreB))) {
+        notice = { kind: 'error', text: 'Scores must be numbers.' };
+        render();
+        return;
+      }
+      void guard(async () => {
+        snapshot = await setScore(snapshot!, saveScore, scoreA, scoreB, admin.email);
+        notice = { kind: 'notice', text: `${saveScore} score saved.` };
       });
       return;
     }

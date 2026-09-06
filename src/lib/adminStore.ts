@@ -89,12 +89,17 @@ export async function setPaid(
  * season this is the only way to run the pool.
  */
 export async function setResult(
-  snapshot: AdminSnapshot, slot: string, winner: string | null, by: string,
+  snapshot: AdminSnapshot,
+  slot: string,
+  winner: string | null,
+  by: string,
+  scores?: { scoreA: number | null; scoreB: number | null },
 ): Promise<AdminSnapshot> {
   const games: Game[] = recordResult(snapshot.bracket.games, slot, {
     winner,
     status: winner ? 'final' : 'scheduled',
     overriddenBy: by,
+    ...(scores ? { scoreA: scores.scoreA, scoreB: scores.scoreB } : {}),
   }, { source: 'admin' });
 
   const bracket: BracketDoc = {
@@ -106,6 +111,42 @@ export async function setResult(
 
   await setDoc(doc(database(), 'tournament', 'bracket'), bracket);
   await audit(winner ? 'set-result' : 'clear-result', { slot, winner }, by);
+
+  const next: AdminSnapshot = { ...snapshot, bracket };
+  await rebuildStandings(next);
+  return next;
+}
+
+/**
+ * Record a final score without touching the winner.
+ *
+ * Not cosmetic for the championship: the tiebreaker is that game's combined
+ * score, so an admin who sets the title game by hand and leaves the score
+ * blank would leave every tie in the pool unresolvable.
+ */
+export async function setScore(
+  snapshot: AdminSnapshot, slot: string, scoreA: number | null, scoreB: number | null, by: string,
+): Promise<AdminSnapshot> {
+  const game = snapshot.bracket.games.find((g) => g.slot === slot);
+  if (!game) throw new Error(`No such slot: ${slot}`);
+
+  const games: Game[] = recordResult(snapshot.bracket.games, slot, {
+    winner: game.winner,
+    scoreA,
+    scoreB,
+    status: game.status,
+    overriddenBy: by,
+  }, { source: 'admin' });
+
+  const bracket: BracketDoc = {
+    ...snapshot.bracket,
+    updatedAt: new Date().toISOString(),
+    teams: snapshot.bracket.teams,
+    games,
+  };
+
+  await setDoc(doc(database(), 'tournament', 'bracket'), bracket);
+  await audit('set-score', { slot, scoreA, scoreB }, by);
 
   const next: AdminSnapshot = { ...snapshot, bracket };
   await rebuildStandings(next);

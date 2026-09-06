@@ -27,6 +27,12 @@ export interface BracketView {
    * be visible at a glance rather than buried in a document.
    */
   overridden?: ReadonlySet<SlotId>;
+  /**
+   * Show final scores beside each team. On for views of what actually
+   * happened; off for an entry, where the bracket is a prediction and a score
+   * would imply the game had been played.
+   */
+  showScores?: boolean;
 }
 
 export function escapeHtml(value: string): string {
@@ -52,6 +58,7 @@ function teamRow(
   teamId: TeamId | null,
   view: BracketView,
   side: 'a' | 'b',
+  score: number | null = null,
 ): string {
   if (!teamId) {
     return `<span class="team empty" data-side="${side}"><span class="seed"></span><span class="tname">TBD</span></span>`;
@@ -66,9 +73,14 @@ function teamRow(
     ? ` type="button" data-slot="${slot}" data-team="${escapeHtml(teamId)}"` +
       ` aria-pressed="${picked}"`
     : '';
+  const scoreCell = view.showScores && score !== null
+    ? `<span class="tscore">${score}</span>`
+    : '';
+
   return `<${tag} class="${classes}" data-side="${side}"${attrs}>` +
     `<span class="seed">${seed}</span>` +
     `<span class="tname">${escapeHtml(label)}</span>` +
+    scoreCell +
     `</${tag}>`;
 }
 
@@ -79,8 +91,8 @@ function matchEl(slot: SlotId, view: BracketView, games: Map<SlotId, Game>): str
   const manual = view.overridden?.has(slot) === true;
   return `<div class="match${decided ? ' done' : ''}${manual ? ' manual' : ''}"` +
     ` data-slot="${slot}">` +
-    teamRow(slot, game.teamA, view, 'a') +
-    teamRow(slot, game.teamB, view, 'b') +
+    teamRow(slot, game.teamA, view, 'a', game.scoreA) +
+    teamRow(slot, game.teamB, view, 'b', game.scoreB) +
     `</div>`;
 }
 

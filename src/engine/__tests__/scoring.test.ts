@@ -206,3 +206,57 @@ describe('pool-wide numbers', () => {
     expect(dist.get(teamId(1, 16))).toBe(1);
   });
 });
+
+describe('a championship decided without a score', () => {
+  // The scenario an admin override creates: ESPN failed on the title game, a
+  // human set the winner, and nobody typed the score. The tiebreaker is that
+  // game's combined total, so this must be detectable rather than silently
+  // making every tie unresolvable.
+  it('reports no championship total', () => {
+    const { games, teams } = setup();
+    const played = playChalkThroughRound(games, teams, 5);
+    const champion = played.find((g) => g.slot === 'R6-01')!.teamA!;
+    const noScore = recordResult(played, 'R6-01', { winner: champion, status: 'final' });
+
+    expect(noScore.find((g) => g.slot === 'R6-01')!.winner).toBe(champion);
+    expect(championshipTotal(noScore)).toBeNull();
+  });
+
+  it('leaves every tiebreaker level, rather than picking a winner at random', () => {
+    const { games, teams, picks } = setup();
+    const played = playChalkThroughRound(games, teams, 5);
+    const champion = played.find((g) => g.slot === 'R6-01')!.teamA!;
+    const noScore = recordResult(played, 'R6-01', { winner: champion, status: 'final' });
+
+    const standings = buildStandings(
+      [
+        makeEntry('a', picks, { tiebreaker: 120 }),
+        makeEntry('b', picks, { tiebreaker: 200 }),
+      ],
+      noScore,
+      teams,
+    );
+    // Same points, same ceiling, and no total to measure guesses against.
+    expect(standings.every((s) => s.rank === 1)).toBe(true);
+  });
+
+  it('settles the tiebreaker once the score is filled in', () => {
+    const { games, teams, picks } = setup();
+    const played = playChalkThroughRound(games, teams, 5);
+    const champion = played.find((g) => g.slot === 'R6-01')!.teamA!;
+    const scored = recordResult(played, 'R6-01', {
+      winner: champion, scoreA: 70, scoreB: 62, status: 'final',
+    });
+
+    expect(championshipTotal(scored)).toBe(132);
+    const standings = buildStandings(
+      [
+        makeEntry('over', picks, { tiebreaker: 140 }),
+        makeEntry('under', picks, { tiebreaker: 130 }),
+      ],
+      scored,
+      teams,
+    );
+    expect(standings[0]!.entryId).toBe('under');
+  });
+});

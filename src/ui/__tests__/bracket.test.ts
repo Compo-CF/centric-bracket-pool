@@ -95,3 +95,31 @@ describe('the mobile results bracket', () => {
     expect((html.match(/data-team=/g) ?? []).length).toBe(0);
   });
 });
+
+describe('scores in the bracket', () => {
+  const decided = recordResult(initial, R1_ARIZONA, {
+    winner: '12', scoreA: 92, scoreB: 58, status: 'final',
+  }, { source: 'sync' });
+
+  it('shows them when the view asks for them', () => {
+    const html = renderDesktop({ ...adminView(decided), showScores: true });
+    expect(html).toContain('<span class="tscore">92</span>');
+    expect(html).toContain('<span class="tscore">58</span>');
+  });
+
+  it('hides them on an entry, where the bracket is a prediction', () => {
+    const html = renderDesktop(adminView(decided));
+    expect(html).not.toContain('tscore');
+  });
+
+  it('shows nothing for a game that has no score yet', () => {
+    const noScore = recordResult(initial, R1_ARIZONA, { winner: '12' }, { source: 'sync' });
+    const html = renderDesktop({ ...adminView(noScore), showScores: true });
+    expect(html).not.toContain('tscore');
+  });
+
+  it('carries them through the mobile layout too', () => {
+    const html = renderMobile({ ...adminView(decided), showScores: true }, 1);
+    expect(html).toContain('<span class="tscore">92</span>');
+  });
+});
