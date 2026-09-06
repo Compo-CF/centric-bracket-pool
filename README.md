@@ -86,8 +86,20 @@ Build &rarr; Firestore Database &rarr; Create database:
 ### 2. Web app config
 
 Project settings &rarr; General &rarr; Your apps &rarr; Web (`</>`) &rarr; register the app.
-Firebase shows a `firebaseConfig` object. Copy `.env.example` to `.env.local`
-and paste each value across:
+Firebase shows a `firebaseConfig` object.
+
+Fastest route: save that whole block as `firebase-config.txt` in the repo root
+(gitignored) and run
+
+```powershell
+cd C:\Users\anthony.compofelice\centric-bracket-pool; .\scripts\import-firebase-config.ps1
+```
+
+which writes `.env.local` for you and reports anything still missing. Re-running
+preserves values you have already set by hand, so it will not clobber the
+tenant id.
+
+By hand instead, copy `.env.example` to `.env.local` and paste each value:
 
 | firebaseConfig key | `.env.local` |
 | --- | --- |
