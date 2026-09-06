@@ -579,3 +579,5 @@ button.linklike {
   cursor: pointer;
 }
 button.linklike:hover { filter: brightness(1.15); }
+
+.status-pill.admin { color: var(--live); border-color: var(--live); }

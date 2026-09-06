@@ -63,6 +63,20 @@ async function assertCompany(user: User): Promise<User> {
   );
 }
 
+/**
+ * Reads the `admin` custom claim off the ID token. The claim is set out of
+ * band by scripts/grant-admin.mjs and only reaches the browser on the next
+ * sign-in, so someone newly made admin has to sign out and back in.
+ */
+export async function hasAdminClaim(user: User): Promise<boolean> {
+  try {
+    const token = await user.getIdTokenResult();
+    return token.claims['admin'] === true;
+  } catch {
+    return false;
+  }
+}
+
 export function signOut(): Promise<void> {
   return fbSignOut(auth());
 }

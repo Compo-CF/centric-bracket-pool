@@ -18,7 +18,9 @@ import {
 } from './engine/index.js';
 import { sampleField } from './data/sampleField.js';
 import { ALLOWED_EMAIL_DOMAIN, isConfigured, missingConfig } from './lib/firebase.js';
-import { AuthError, onUserChange, signIn, signOut, type User } from './lib/auth.js';
+import {
+  AuthError, hasAdminClaim, onUserChange, signIn, signOut, type User,
+} from './lib/auth.js';
 import { LocalStore, newEntry, type PoolStore, type StoredEntry } from './lib/store.js';
 import { FirestoreStore } from './lib/firestoreStore.js';
 import { escapeHtml } from './ui/bracket.js';
@@ -52,6 +54,7 @@ const USING_SAMPLE_FIELD = true;
 
 let cleanup: (() => void) | null = null;
 let currentUser: User | null = null;
+let currentIsAdmin = false;
 
 function prizeTable(entries: number): string {
   const pool = prizePool(entries, prizeRules);
@@ -96,7 +99,11 @@ function localModeBanner(): string {
 
 function userBar(): string {
   if (!currentUser) return '';
-  return `<p class="who">Signed in as ${escapeHtml(currentUser.email ?? 'unknown')}
+  // The admin panel itself is not built yet; this only reports the claim.
+  const admin = currentIsAdmin
+    ? ' &middot; <span class="status-pill admin">Admin</span>'
+    : '';
+  return `<p class="who">Signed in as ${escapeHtml(currentUser.email ?? 'unknown')}${admin}
     &middot; <button type="button" id="sign-out" class="linklike">Sign out</button></p>`;
 }
 
@@ -311,8 +318,9 @@ function boot(): void {
     return;
   }
 
-  onUserChange((user) => {
+  onUserChange(async (user) => {
     currentUser = user;
+    currentIsAdmin = user ? await hasAdminClaim(user) : false;
     if (!user) {
       cleanup?.();
       cleanup = null;
