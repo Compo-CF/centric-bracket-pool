@@ -18,12 +18,11 @@
  *   ... add --write to actually store it.
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
 
 import { buildEmptyBracket, seedBracket } from '../src/engine/bracket.js';
 import type { RegionIndex, Team } from '../src/engine/types.js';
 import { parseScoreboard } from '../src/sync/espn.js';
-import { initAdmin } from './lib/admin-app.js';
+import { firestore, initAdmin } from './lib/admin-app.js';
 import { ScriptExit, run } from './lib/exit.js';
 import { fetchScoreboard } from './lib/sync.js';
 
@@ -117,7 +116,7 @@ await run(async () => {
     throw new ScriptExit(0);
   }
 
-  await getFirestore().doc('tournament/bracket').set({
+  await firestore().doc('tournament/bracket').set({
     isSampleField: false,
     updatedAt: new Date().toISOString(),
     teams,

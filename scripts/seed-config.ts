@@ -18,9 +18,9 @@
  *   npm run pool:seed-config -- --force        (overwrite existing settings)
  */
 
-import { Timestamp, getFirestore } from 'firebase-admin/firestore';
+import { Timestamp } from '@google-cloud/firestore';
 
-import { initAdmin } from './lib/admin-app.js';
+import { firestore, initAdmin } from './lib/admin-app.js';
 import { ScriptExit, run } from './lib/exit.js';
 
 await run(async () => {
@@ -42,7 +42,7 @@ await run(async () => {
   const { projectId, via } = await initAdmin();
   console.log(`Using ${via}${projectId ? ` for ${projectId}` : ''}.`);
 
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.doc('config/pool');
 
   const existing = await ref.get();

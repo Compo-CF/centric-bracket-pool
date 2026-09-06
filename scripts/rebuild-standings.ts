@@ -8,10 +8,9 @@
  *   npm run pool:standings
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
 
 import { formatMoney } from '../src/engine/index.js';
-import { initAdmin } from './lib/admin-app.js';
+import { firestore, initAdmin } from './lib/admin-app.js';
 import { run } from './lib/exit.js';
 import { writeStandings } from './lib/standings.js';
 
@@ -19,7 +18,7 @@ await run(async () => {
   const { projectId, via } = await initAdmin();
   console.log(`Using ${via} for ${projectId}.\n`);
 
-  const doc = await writeStandings(getFirestore());
+  const doc = await writeStandings(firestore());
 
   console.log(`Wrote tournament/standings.`);
   console.log(`  submitted entries  ${doc.entryCount}`);

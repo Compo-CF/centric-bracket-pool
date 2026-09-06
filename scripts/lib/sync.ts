@@ -6,7 +6,7 @@
  * the same arguments.
  */
 
-import type { Firestore } from 'firebase-admin/firestore';
+import type { Firestore } from '@google-cloud/firestore';
 
 import { applyEliminations, recordResult } from '../../src/engine/results.js';
 import type { Game, Team } from '../../src/engine/types.js';

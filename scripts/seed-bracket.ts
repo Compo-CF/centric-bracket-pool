@@ -12,11 +12,10 @@
  *   npx tsx scripts/seed-bracket.ts --force     (overwrite, LOSES results)
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
 
 import { buildEmptyBracket, seedBracket } from '../src/engine/bracket.js';
 import { sampleField } from '../src/data/sampleField.js';
-import { initAdmin } from './lib/admin-app.js';
+import { firestore, initAdmin } from './lib/admin-app.js';
 import { ScriptExit, run } from './lib/exit.js';
 
 await run(async () => {
@@ -25,7 +24,7 @@ await run(async () => {
   const { projectId, via } = await initAdmin();
   console.log(`Using ${via} for ${projectId}.`);
 
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.doc('tournament/bracket');
 
   const existing = await ref.get();

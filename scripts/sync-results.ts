@@ -10,9 +10,8 @@
  *   npm run pool:sync -- --from 20270319 --to 20270322
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
 
-import { initAdmin } from './lib/admin-app.js';
+import { firestore, initAdmin } from './lib/admin-app.js';
 import { run } from './lib/exit.js';
 import { dateStamp, runSync } from './lib/sync.js';
 
@@ -30,7 +29,7 @@ await run(async () => {
   const { projectId, via } = await initAdmin();
   console.log(`Using ${via} for ${projectId}.`);
 
-  const outcome = await runSync(getFirestore(), { from, to, dryRun });
+  const outcome = await runSync(firestore(), { from, to, dryRun });
 
   console.log(`\nESPN window        ${from}-${to}`);
   console.log(`events seen        ${outcome.eventsSeen}`);

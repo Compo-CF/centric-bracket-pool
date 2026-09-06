@@ -10,7 +10,7 @@
  * free tier; this is 2,000. Every viewer reads exactly one document.
  */
 
-import type { Firestore } from 'firebase-admin/firestore';
+import type { Firestore } from '@google-cloud/firestore';
 
 import type { BracketDoc, StandingsDoc } from '../../src/lib/documents.js';
 

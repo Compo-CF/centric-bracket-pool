@@ -18,9 +18,8 @@
  * The person must have signed in at least once first, so the account exists.
  */
 
-import { getAuth } from 'firebase-admin/auth';
 
-import { initAdmin } from './lib/admin-app.js';
+import { adminAuth, initAdmin } from './lib/admin-app.js';
 import { ScriptExit, run } from './lib/exit.js';
 
 await run(async () => {
@@ -36,10 +35,10 @@ await run(async () => {
   console.log(`Using ${via}${projectId ? ` for ${projectId}` : ''}.`);
 
   try {
-    const user = await getAuth().getUserByEmail(email);
+    const user = await adminAuth().getUserByEmail(email);
     const existing = user.customClaims ?? {};
 
-    await getAuth().setCustomUserClaims(user.uid, revoke
+    await adminAuth().setCustomUserClaims(user.uid, revoke
       ? { ...existing, admin: false }
       : { ...existing, admin: true });
 

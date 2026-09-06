@@ -10,11 +10,10 @@
  *   npm run pool:set-result -- --slot R1-07 --clear
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
 
 import { applyEliminations, recordResult } from '../src/engine/results.js';
 import type { BracketDoc } from '../src/lib/documents.js';
-import { initAdmin } from './lib/admin-app.js';
+import { firestore, initAdmin } from './lib/admin-app.js';
 import { ScriptExit, run } from './lib/exit.js';
 import { writeStandings } from './lib/standings.js';
 
@@ -39,7 +38,7 @@ await run(async () => {
   const { projectId, via } = await initAdmin();
   console.log(`Using ${via} for ${projectId}.`);
 
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.doc('tournament/bracket');
   const snapshot = await ref.get();
   if (!snapshot.exists) {

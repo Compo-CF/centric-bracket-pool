@@ -11,15 +11,14 @@
  *   npm run pool:status
  */
 
-import { getAuth } from 'firebase-admin/auth';
-import { Timestamp, getFirestore } from 'firebase-admin/firestore';
+import { Timestamp } from '@google-cloud/firestore';
 
-import { initAdmin } from './lib/admin-app.js';
+import { adminAuth, firestore, initAdmin } from './lib/admin-app.js';
 import { run } from './lib/exit.js';
 
 await run(async () => {
   const { projectId } = await initAdmin();
-  const db = getFirestore();
+  const db = firestore();
 
   console.log(`\n=== ${projectId} ===\n`);
 
@@ -50,7 +49,7 @@ await run(async () => {
       `${picks}/63 picks  paid=${d['paid'] === true}  owner=${d['ownerEmail'] ?? 'MISSING'}`);
   }
 
-  const users = await getAuth().listUsers(100);
+  const users = await adminAuth().listUsers(100);
   const admins = users.users.filter((u) => u.customClaims?.admin === true);
   console.log(`\nusers             ${users.users.length}`);
   console.log(`admins            ${admins.length ? admins.map((u) => u.email).join(', ') : 'none'}`);
